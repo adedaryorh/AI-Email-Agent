@@ -1,0 +1,15 @@
+import { Component, inject, signal } from '@angular/core';
+import { Api } from '../core/api';
+import { Analytics } from '../core/models';
+import { Page } from '../core/page';
+import { Notice } from '../core/ui';
+@Component({imports:[Notice],template:`
+<div class="page-heading"><div><span class="eyebrow">UNDERSTAND YOUR INBOX</span><h1>A little perspective</h1><p>A snapshot of your stored messages, classifications and reply workflow.</p></div><button (click)="load()" [disabled]="busy()">Refresh analytics</button></div><app-notice [error]="error()" [busy]="busy()"/>
+@if(data();as stats){<div class="stats-grid"><article class="stat"><span>Total messages</span><strong>{{sum(stats.messages_by_status)}}</strong><small>Synced to this workspace</small></article><article class="stat"><span>Classified</span><strong>{{sum(stats.categories)}}</strong><small>Latest classification per message</small></article><article class="stat"><span>Replies sent</span><strong>{{stats.drafts_by_status['sent'] || 0}}</strong><small>Confirmed by Gmail</small></article><article class="stat warm"><span>Failed processing</span><strong>{{stats.messages_by_status['failed'] || 0}}</strong><small>Inspect in Messages</small></article></div><div class="analytics-grid"><section class="panel chart-panel"><h2>What’s in your inbox</h2><p class="muted">Messages by latest category</p>@for(entry of entries(stats.categories);track entry[0]){<div class="bar-row"><div><span>{{entry[0]}}</span><strong>{{entry[1]}}</strong></div><div class="bar-track"><span [style.width.%]="sum(stats.categories)?100*entry[1]/sum(stats.categories):0"></span></div></div>} @empty {<div class="empty"><h3>No classifications yet</h3><p>Categories appear after messages are processed.</p></div>}</section><section class="panel chart-panel"><h2>Reply workflow</h2><p class="muted">Current status of generated drafts</p>@for(entry of entries(stats.drafts_by_status);track entry[0]){<div class="metric-row"><span class="badge" [attr.data-status]="entry[0]">{{entry[0].replaceAll('_',' ')}}</span><strong>{{entry[1]}}</strong></div>} @empty {<div class="empty"><h3>No drafts yet</h3><p>Your reply workflow will appear here.</p></div>}</section></div><section class="panel chart-panel"><h2>Processing status</h2><div class="status-summary">@for(entry of entries(stats.messages_by_status);track entry[0]){<div><span class="badge" [attr.data-status]="entry[0]">{{entry[0].replaceAll('_',' ')}}</span><strong>{{entry[1]}}</strong></div>} @empty {<p class="muted">Connect and sync a mailbox to get started.</p>}</div></section><p class="small-text muted">Counts reflect the current stored state, not historical trends or delivery-rate estimates.</p>}`})
+export class AnalyticsPage extends Page {
+  private readonly api=inject(Api);readonly data=signal<Analytics|null>(null);
+  constructor(){super();this.load();}
+  load(){void this.run(async()=>{this.data.set(await this.api.analytics());});}
+  sum(values:Record<string,number>){return Object.values(values).reduce((sum,n)=>sum+n,0);}
+  entries(values:Record<string,number>){return Object.entries(values).sort((a,b)=>b[1]-a[1]);}
+}
